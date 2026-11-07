@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0a0f18">
+  <title>Project Outbreak: Пандемия</title>
+  <style>
+    :root {
+      --bg: #070b12;
+      --card-bg: rgba(13, 21, 34, 0.94);
+      --border: rgba(255, 255, 255, 0.12);
+      --red: #ef4444;
+      --red-glow: #dc2626;
+      --dna: #f59e0b;
+      --blue: #0284c7;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+    }
+
+    #app {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    canvas#map {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: radial-gradient(circle at 50% 50%, #0d1e34 0%, #060a12 100%);
+    }
+
+    /* Верхняя панель */
+    .top-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 50px;
+      padding: 0 12px;
+      background: rgba(10, 15, 24, 0.9);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      z-index: 10;
+    }
+
+    .news-box {
+      flex: 1;
+      height: 30px;
+      background: rgba(0, 0, 0, 0.5);
+      border-left: 3px solid var(--red);
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+    }
+
+    .news-text {
+      white-space: nowrap;
+      font-size: 12px;
+      color: #e2e8f0;
+      animation: ticker 26s linear infinite;
+    }
+
+    @keyframes ticker {
+      0% { transform: translateX(100%); }
+      100% { transform: translateX(-100%); }
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .date {
+      font-size: 12px;
+      font-weight: 700;
+      color: #7dd3fc;
+      min-width: 80px;
+      text-align: right;
+    }
+
+    .btn-speed {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border);
+      color: #fff;
+      padding: 5px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn-speed.active {
+      background: var(--red);
+      border-color: #f87171;
+    }
+
+    /* Нижняя панель */
+    .bottom-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      padding: 0 14px;
+      background: rgba(10, 15, 24, 0.95);
+      backdrop-filter: blur(8px);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 10;
+    }
+
+    .dna-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--dna);
+      cursor: pointer;
+    }
+
+    .stats-summary {
+      display: flex;
+      flex-direction: column;
+      font-size: 11px;
+      gap: 2px;
+    }
+
+    .btn-evolve {
+      background: linear-gradient(135deg, #b91c1c, #7f1d1d);
+      border: 1px solid #ef4444;
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      box-shadow: 0 2px 10px rgba(220, 38, 38, 0.4);
+    }
+
+    /* Виджет лекарства */
+    .cure-box {
+      position: absolute;
+      left: 12px;
+      bottom: 70px;
+      width: 190px;
+      background: rgba(13, 21, 34, 0.88);
+      border: 1px solid rgba(2, 132, 199, 0.4);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 11px;
+      z-index: 10;
+    }
+
+    .cure-bar {
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      margin-top: 4px;
+      overflow: hidden;
+    }
+
+    .cure-fill {
+      height: 100%;
+      background: var(--blue);
+      width: 0%;
+      transition: width 0.3s;
+    }
+
+    /* Зум кнопки */
+    .zoom-box {
+      position: absolute;
+      right: 12px;
+      bottom: 70px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      z-index: 10;
+    }
+
+    .btn-circle {
+      width: 36px;
+      height: 36px;
+      background: rgba(13, 21, 34, 0.9);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    /* Окно выбранной страны */
+    .country-card {
+      position: absolute;
+      top: 60px;
+      right: 12px;
+      width: 270px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      display: none;
+      z-index: 15;
+      font-size: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+    }
+
+    .country-card.open { display: block; }
+
+    .bar-line {
+      height: 6px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 3px;
+      margin: 3px 0 8px 0;
+      overflow: hidden;
+    }
+
+    /* Модалка мутаций */
+    .modal {
+      display: none;
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(3, 7, 13, 0.85);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .modal.open { display: flex; }
+
+    .modal-box {
+      width: 100%;
+      max-width: 640px;
+      max-height: 85vh;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 6px;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tab {
+      flex: 1;
+      padding: 6px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .tab.active {
+      background: var(--red);
+      border-color: #f87171;
+      color: #fff;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 10px;
+      padding: 14px;
+      overflow-y: auto;
+    }
+
+    .card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 95px;
+    }
+
+    .card.bought {
+      background: rgba(220, 38, 38, 0.2);
+      border-color: #ef4444;
+    }
+
+    .card-name { font-size: 12px; font-weight: 700; }
+    .card-desc { font-size: 10px; color: var(--muted); margin-top: 4px; }
+    .card-cost { font-size: 11px; font-weight: 700; color: var(--dna); margin-top: 6px; }
+  </style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Верхняя строка -->
+  <div class="top-bar">
+    <div class="news-box">
+      <div class="news-text" id="news">Неизвестный штамм обнаружен в лаборатории. ВОЗ следит за развитием ситуации.</div>
+    </div>
+    <div class="controls">
+      <div class="date" id="game-date">12 Мар 2026</div>
+      <button class="btn-speed active" onclick="setSpeed(1)">1x</button>
+      <button class="btn-speed" onclick="setSpeed(2)">2x</button>
+      <button class="btn-speed" onclick="setSpeed(0)">❚❚</button>
+    </div>
+  </div>
+
+  <!-- Холст мира -->
+  <canvas id="map"></canvas>
+
+  <!-- Индикатор вакцины -->
+  <div class="cure-box">
+    <div style="display:flex; justify-content:space-between; color:#7dd3fc; font-weight:700;">
+      <span>РАЗРАБОТКА ЛЕКАРСТВА</span>
+      <span id="cure-val">0%</span>
+    </div>
+    <div class="cure-bar">
+      <div class="cure-fill" id="cure-fill"></div>
+    </div>
+  </div>
+
+  <!-- Кнопки масштабирования -->
+  <div class="zoom-box">
+    <button class="btn-circle" onclick="zoom(1.2)">+</button>
+    <button class="btn-circle" onclick="zoom(0.8)">−</button>
+  </div>
+
+  <!-- Панель информации о стране -->
+  <div class="country-card" id="country-panel">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+      <b id="c-name" style="font-size:15px; color:#fff;">Страна</b>
+      <span onclick="closePanel()" style="cursor:pointer; color:var(--muted); font-size:16px;">✕</span>
+    </div>
+    <div id="c-type" style="color:var(--muted); font-size:11px; margin-bottom:8px;">Климат • Статус</div>
+
+    <div>Население: <b id="c-pop">0</b></div>
+    <div style="margin-top:6px; color:#ef4444;">Заражено: <b id="c-inf">0</b></div>
+    <div class="bar-line"><div id="c-inf-bar" style="height:100%; background:#ef4444; width:0%;"></div></div>
+
+    <div style="color:var(--muted);">Погибло: <b id="c-dead">0</b></div>
+    <div class="bar-line"><div id="c-dead-bar" style="height:100%; background:#475569; width:0%;"></div></div>
+  </div>
+
+  <!-- Нижняя панель действий -->
+  <div class="bottom-bar">
+    <div class="dna-badge" onclick="openEvolve()">
+      <span>🧬</span>
+      <span id="dna-text">15 ДНК</span>
+    </div>
+
+    <div class="stats-summary">
+      <div style="color:#ef4444;">Заражено: <b id="sum-inf" style="color:#fff;">0</b></div>
+      <div style="color:var(--muted);">Погибло: <b id="sum-dead" style="color:#fff;">0</b></div>
+    </div>
+
+    <button class="btn-evolve" onclick="openEvolve()">МУТАЦИИ</button>
+  </div>
+
+  <!-- Окно прокачки мутаций -->
+  <div class="modal" id="modal-evolve">
+    <div class="modal-box">
+      <div class="modal-head">
+        <b style="font-size:15px;">Дерево развития штамма</b>
+        <span onclick="closeEvolve()" style="cursor:pointer; font-size:20px; color:var(--muted);">✕</span>
+      </div>
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('trans')">Передача</button>
+        <button class="tab" onclick="switchTab('symp')">Симптомы</button>
+        <button class="tab" onclick="switchTab('abil')">Способности</button>
+      </div>
+      <div class="grid" id="upgrades-list"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// --- БАЗА СТРАН С РЕАЛИСТИЧНЫМИ ГЕОГРАФИЧЕСКИМИ КООРДИНАТАМИ ---
+const COUNTRIES = [
+  {
+    id: "rus", name: "Россия", pop: 144500000, color: "#28392d", center: [680, 110],
+    poly: [[510,60], [590,50], [690,45], [780,50], [870,65], [890,95], [830,110], [750,115], [670,120], [590,125], [530,135], [480,140], [480,105], [500,80]]
+  },
+  {
+    id: "chn", name: "Китай", pop: 1412000000, color: "#383a27", center: [730, 195],
+    poly: [[675,145], [745,145], [785,160], [785,210], [745,235], [690,230], [670,180]]
+  },
+  {
+    id: "ind", name: "Индия", pop: 1408000000, color: "#423625", center: [665, 230],
+    poly: [[635,195], [685,190], [690,225], [670,270], [650,250], [635,215]]
+  },
+  {
+    id: "usa", name: "США", pop: 335000000, color: "#273440", center: [230, 175],
+    poly: [[155,140], [290,140], [280,190], [250,195], [215,210], [165,190]]
+  },
+  {
+    id: "can", name: "Канада", pop: 38900000, color: "#283832", center: [220, 105],
+    poly: [[135,80], [270,75], [300,105], [290,140], [155,140], [125,100]]
+  },
+  {
+    id: "bra", name: "Бразилия", pop: 215000000, color: "#233d2a", center: [340, 320],
+    poly: [[295,270], [360,265], [395,300], [375,360], [325,360], [285,310]]
+  },
+  {
+    id: "grn", name: "Гренландия", pop: 56000, color: "#33414a", center: [380, 65],
+    poly: [[350,50], [405,45], [420,80], [380,95], [350,75]]
+  },
+  {
+    id: "eur", name: "Европа", pop: 340000000, color: "#2d3542", center: [490, 145],
+    poly: [[455,130], [510,130], [510,165], [470,170], [455,145]]
+  },
+  {
+    id: "afr", name: "Африка", pop: 410000000, color: "#423727", center: [520, 275],
+    poly: [[465,220], [560,215], [570,270], [540,330], [490,300], [465,240]]
+  },
+  {
+    id: "aus", name: "Австралия", pop: 26000000, color: "#473a27", center: [820, 340],
+    poly: [[765,305], [840,300], [865,340], [830,380], [780,365], [765,330]]
+  }
+];
+
+// Морские и воздушные коридоры
+const ROUTES = [
+  { from: "chn", to: "usa", air: true },
+  { from: "eur", to: "usa", air: false },
+  { from: "rus", to: "chn", air: true },
+  { from: "ind", to: "afr", air: false },
+  { from: "bra", to: "eur", air: false },
+  { from: "can", to: "grn", air: false },
+  { from: "chn", to: "aus", air: true }
+];
+
+// Дерево мутаций
+const UPGRADES = [
+  { id: "t_air", cat: "trans", name: "Воздух I", cost: 9, inf: 8, sev: 0, let: 0, buy: false, desc: "Передача микрокаплями по воздуху." },
+  { id: "t_air2", cat: "trans", name: "Воздух II", cost: 15, inf: 16, sev: 1, let: 0, buy: false, desc: "Проникновение через вентиляционные фильтры." },
+  { id: "t_wat", cat: "trans", name: "Вода I", cost: 9, inf: 7, sev: 0, let: 0, buy: false, desc: "Выживание в системах водоснабжения." },
+  { id: "t_bld", cat: "trans", name: "Кровь", cost: 12, inf: 11, sev: 2, let: 0, buy: false, desc: "Передача через биоматериалы и укусы." },
+
+  { id: "s_cgh", cat: "symp", name: "Кашель", cost: 6, inf: 8, sev: 2, let: 0, buy: false, desc: "Ускоряет распространение штамма." },
+  { id: "s_pnm", cat: "symp", name: "Пневмония", cost: 14, inf: 10, sev: 7, let: 3, buy: false, desc: "Тяжелое воспаление легочной системы." },
+  { id: "s_org", cat: "symp", name: "Отказ органов", cost: 26, inf: 4, sev: 18, let: 16, buy: false, desc: "Критическая летальность среди носителей." },
+
+  { id: "a_cld", cat: "abil", name: "Морозостойкость", cost: 11, inf: 5, sev: 0, let: 0, buy: false, desc: "Эффективность в холодных регионах (Гренландия, РФ)." },
+  { id: "a_drg", cat: "abil", name: "Резистентность", cost: 17, inf: 4, sev: 2, let: 0, buy: false, desc: "Замедляет создание вакцины учеными." }
+];
+
+// Состояние симуляции
+let state = {
+  dna: 15,
+  date: new Date(2026, 2, 12),
+  speed: 1,
+  cure: 0,
+  activeTab: "trans",
+  selected: null,
+  vehicles: [],
+  bubbles: []
+};
+
+// Звуковой синтезатор на Web Audio API
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playTone(freq, type = 'sine', duration = 0.15) {
+  try {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+  } catch(e) {}
+}
+
+// Инициализация данных стран
+let world = COUNTRIES.map(c => ({
+  ...c,
+  inf: 0,
+  dead: 0,
+  health: c.pop
+}));
+
+// Старт в Китае
+world[1].inf = 15;
+world[1].health -= 15;
+
+// Холст и координатная сетка
+const canvas = document.getElementById("map");
+const ctx = canvas.getContext("2d");
+let transform = { x: 0, y: 0, scale: 1 };
+
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  transform.scale = canvas.width / 1050;
+  transform.y = (canvas.height - 500 * transform.scale) / 2;
+}
+window.addEventListener("resize", resize);
+resize();
+
+// Генерация транспорта
+function spawnVehicle() {
+  if (state.speed === 0) return;
+  const route = ROUTES[Math.floor(Math.random() * ROUTES.length)];
+  const from = world.find(c => c.id === route.from);
+  const to = world.find(c => c.id === route.to);
+  state.vehicles.push({
+    x: from.center[0], y: from.center[1],
+    tx: to.center[0], ty: to.center[1],
+    from, to, p: 0,
+    air: route.air,
+    infected: from.inf > 500
+  });
+}
+setInterval(spawnVehicle, 3000);
+
+// Отрисовка
+function render() {
+  ctx.save();
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.translate(transform.x, transform.y);
+  ctx.scale(transform.scale, transform.scale);
+
+  // Сетка
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.04)";
+  for (let x = 0; x <= 1000; x += 100) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 500); ctx.stroke();
+  }
+  for (let y = 0; y <= 500; y += 100) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(1000, y); ctx.stroke();
+  }
+
+  // Маршруты
+  ROUTES.forEach(r => {
+    const c1 = world.find(c => c.id === r.from);
+    const c2 = world.find(c => c.id === r.to);
+    ctx.strokeStyle = r.air ? "rgba(148, 163, 184, 0.15)" : "rgba(56, 189, 248, 0.15)";
+    ctx.beginPath();
+    ctx.moveTo(c1.center[0], c1.center[1]);
+    ctx.lineTo(c2.center[0], c2.center[1]);
+    ctx.stroke();
+  });
+
+  // Полигоны стран
+  world.forEach(c => {
+    ctx.beginPath();
+    c.poly.forEach((pt, i) => {
+      if (i === 0) ctx.moveTo(pt[0], pt[1]);
+      else ctx.lineTo(pt[0], pt[1]);
+    });
+    ctx.closePath();
+
+    ctx.fillStyle = c.color;
+    ctx.fill();
+
+    // Заражение (красный оверлей)
+    const ratio = c.inf / c.pop;
+    if (ratio > 0.0001) {
+      ctx.fillStyle = `rgba(239, 68, 68, ${Math.min(0.85, 0.25 + ratio * 0.7)})`;
+      ctx.fill();
+    }
+
+    // Смертность (темный оверлей)
+    const deadRatio = c.dead / c.pop;
+    if (deadRatio > 0.0001) {
+      ctx.fillStyle = `rgba(15, 23, 42, ${Math.min(0.9, deadRatio * 0.95)})`;
+      ctx.fill();
+    }
+
+    ctx.strokeStyle = state.selected?.id === c.id ? "#ffffff" : "rgba(255,255,255,0.2)";
+    ctx.lineWidth = state.selected?.id === c.id ? 2 : 1;
+    ctx.stroke();
+
+    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+    ctx.font = "10px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(c.name, c.center[0], c.center[1]);
+  });
+
+  // Транспорт
+  state.vehicles.forEach(v => {
+    ctx.beginPath();
+    ctx.arc(v.x, v.y, v.air ? 3.5 : 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = v.infected ? "#ef4444" : "#f8fafc";
+    ctx.fill();
+  });
+
+  // Пузыри ДНК
+  state.bubbles.forEach(b => {
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, 14, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(245, 158, 11, 0.85)";
+    ctx.fill();
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 10px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("🧬", b.x, b.y + 3.5);
+  });
+
+  ctx.restore();
+  requestAnimationFrame(render);
+}
+requestAnimationFrame(render);
+
+// Логика симуляции
+function tick() {
+  if (state.speed === 0) return;
+
+  const infB = UPGRADES.filter(u => u.buy).reduce((s, u) => s + u.inf, 0);
+  const letB = UPGRADES.filter(u => u.buy).reduce((s, u) => s + u.let, 0);
+  const sevB = UPGRADES.filter(u => u.buy).reduce((s, u) => s + u.sev, 0);
+
+  world.forEach(c => {
+    if (c.inf > 0) {
+      let speed = (0.04 + infB * 0.005) * state.speed;
+      let added = Math.ceil(c.inf * speed);
+      added = Math.min(c.health, added);
+      c.inf += added;
+      c.health -= added;
+
+      if (letB > 0) {
+        let dead = Math.ceil(c.inf * (letB * 0.0018) * state.speed);
+        dead = Math.min(c.inf, dead);
+        c.dead += dead;
+        c.inf -= dead;
+      }
+    }
+  });
+
+  // Перемещение транспорта
+  state.vehicles.forEach(v => {
+    v.p += 0.01 * state.speed;
+    v.x = v.from.center[0] + (v.tx - v.from.center[0]) * v.p;
+    v.y = v.from.center[1] + (v.ty - v.from.center[1]) * v.p;
+
+    if (v.p >= 1) {
+      if (v.infected && v.to.inf === 0) {
+        v.to.inf += 10;
+        v.to.health -= 10;
+        document.getElementById("news").innerText = `Патоген зафиксирован в стране: ${v.to.name}!`;
+        playTone(320, 'square', 0.25);
+      }
+    }
+  });
+  state.vehicles = state.vehicles.filter(v => v.p < 1);
+
+  // Спавн ДНК-пузырей на зараженных странах
+  if (Math.random() < 0.12 && state.bubbles.length < 3) {
+    const infCountries = world.filter(c => c.inf > 0);
+    if (infCountries.length > 0) {
+      const pick = infCountries[Math.floor(Math.random() * infCountries.length)];
+      state.bubbles.push({
+        x: pick.center[0] + (Math.random() * 20 - 10),
+        y: pick.center[1] + (Math.random() * 20 - 10)
+      });
+    }
+  }
+
+  // Вакцина
+  if (sevB > 4) {
+    let dev = 0.01 * (sevB / 10) * state.speed;
+    if (UPGRADES.find(u => u.id === "a_drg").buy) dev *= 0.55;
+    state.cure = Math.min(100, state.cure + dev);
+  }
+
+  // Дата
+  state.date.setDate(state.date.getDate() + 1);
+  updateUI();
+}
+setInterval(tick, 800);
+
+// Обновление интерфейса
+function updateUI() {
+  document.getElementById("dna-text").innerText = `${state.dna} ДНК`;
+  document.getElementById("game-date").innerText = state.date.toLocaleDateString("ru-RU", { day: 'numeric', month: 'short', year: 'numeric' });
+
+  const totalInf = world.reduce((s, c) => s + c.inf, 0);
+  const totalDead = world.reduce((s, c) => s + c.dead, 0);
+
+  document.getElementById("sum-inf").innerText = totalInf.toLocaleString();
+  document.getElementById("sum-dead").innerText = totalDead.toLocaleString();
+
+  document.getElementById("cure-val").innerText = `${Math.floor(state.cure)}%`;
+  document.getElementById("cure-fill").style.width = `${state.cure}%`;
+
+  if (state.selected) {
+    document.getElementById("c-name").innerText = state.selected.name;
+    document.getElementById("c-pop").innerText = state.selected.pop.toLocaleString();
+    document.getElementById("c-inf").innerText = state.selected.inf.toLocaleString();
+    document.getElementById("c-dead").innerText = state.selected.dead.toLocaleString();
+    document.getElementById("c-inf-bar").style.width = `${Math.min(100, (state.selected.inf / state.selected.pop) * 100)}%`;
+    document.getElementById("c-dead-bar").style.width = `${Math.min(100, (state.selected.dead / state.selected.pop) * 100)}%`;
+  }
+}
+
+// Клик по карте (определение полигонов и пузырей)
+function pointInPoly(pt, poly) {
+  let ins = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i][0], yi = poly[i][1];
+    const xj = poly[j][0], yj = poly[j][1];
+    const intersect = ((yi > pt[1]) !== (yj > pt[1])) && (pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi);
+    if (intersect) ins = !ins;
+  }
+  return ins;
+}
+
+canvas.addEventListener("click", e => {
+  const r = canvas.getBoundingClientRect();
+  const wx = (e.clientX - r.left - transform.x) / transform.scale;
+  const wy = (e.clientY - r.top - transform.y) / transform.scale;
+
+  // Клик по пузырю ДНК
+  const bIndex = state.bubbles.findIndex(b => Math.hypot(b.x - wx, b.y - wy) < 18);
+  if (bIndex !== -1) {
+    state.bubbles.splice(bIndex, 1);
+    state.dna += Math.floor(Math.random() * 3) + 2;
+    playTone(587, 'sine', 0.15);
+    updateUI();
+    return;
+  }
+
+  // Клик по стране
+  const clicked = world.find(c => pointInPoly([wx, wy], c.poly));
+  if (clicked) {
+    state.selected = clicked;
+    document.getElementById("country-panel").classList.add("open");
+    playTone(440, 'sine', 0.08);
+    updateUI();
+  } else {
+    closePanel();
+  }
+});
+
+function closePanel() {
+  state.selected = null;
+  document.getElementById("country-panel").classList.remove("open");
+}
+
+function setSpeed(s) {
+  state.speed = s;
+  document.querySelectorAll(".btn-speed").forEach((b, i) => {
+    b.classList.toggle("active", (s === 1 && i === 0) || (s === 2 && i === 1) || (s === 0 && i === 2));
+  });
+}
+
+function zoom(factor) {
+  transform.scale = Math.min(2.5, Math.max(0.6, transform.scale * factor));
+}
+
+// Меню мутаций
+function openEvolve() {
+  document.getElementById("modal-evolve").classList.add("open");
+  renderUpgrades();
+}
+
+function closeEvolve() {
+  document.getElementById("modal-evolve").classList.remove("open");
+}
+
+function switchTab(t) {
+  state.activeTab = t;
+  document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+  event.target.classList.add("active");
+  renderUpgrades();
+}
+
+function renderUpgrades() {
+  const list = document.getElementById("upgrades-list");
+  list.innerHTML = "";
+  UPGRADES.filter(u => u.cat === state.activeTab).forEach(u => {
+    const card = document.createElement("div");
+    card.className = `card ${u.buy ? 'bought' : ''}`;
+    card.innerHTML = `
+      <div class="card-name">${u.name}</div>
+      <div class="card-desc">${u.desc}</div>
+      <div class="card-cost">${u.buy ? 'МУТИРОВАНО' : u.cost + ' ДНК'}</div>
+    `;
+    card.onclick = () => {
+      if (!u.buy && state.dna >= u.cost) {
+        state.dna -= u.cost;
+        u.buy = true;
+        playTone(659, 'triangle', 0.2);
+        renderUpgrades();
+        updateUI();
+      }
+    };
+    list.appendChild(card);
+  });
+}
+</script>
+</body>
+</html>
